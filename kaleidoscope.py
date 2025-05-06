@@ -11,7 +11,7 @@ import shutil
 # === Configuration ===
 WIDTH, HEIGHT = 600, 600
 NUM_SHAPES = 60
-NUM_FRAMES = 600
+NUM_FRAMES = 1800
 SHAPE_TYPES = ['circle', 'hollow_circle', 'rectangle', 'hollow_rectangle', 'triangle', 'hollow_triangle']
 OUTPUT_DIR = "frames"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
