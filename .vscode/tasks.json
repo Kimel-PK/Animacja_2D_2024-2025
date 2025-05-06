@@ -1,0 +1,18 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+	  {
+		"label": "Uruchom program",
+		"type": "shell",
+		"options": {
+		  "cwd": "${workspaceFolder}\\"
+		},
+		"command": "python kaleidoscope.py",
+		"problemMatcher": [],
+		"group": {
+		  "kind": "build",
+		  "isDefault": true
+		}
+	  }
+	]
+  }
