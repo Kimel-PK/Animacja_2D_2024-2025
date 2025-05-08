@@ -5,7 +5,6 @@ import random
 import math
 import os
 import colorsys
-import shutil
 
 # ===== Settings =====
 WIDTH, HEIGHT = 600, 600
@@ -15,6 +14,8 @@ SHAPE_TYPES = ['circle', 'hollow_circle', 'rectangle', 'hollow_rectangle', 'tria
 TEMP_DIR = "frames"
 OUTPUT_FILE = "kaleidoscope.mp4"
 TARGET_FPS = 60
+INVERT_MASK = "no"
+ROTATE_COMPOSITE = 0 # 0, 90, 180, 270
 # ====================
 
 def random_saturated_color():
@@ -114,13 +115,8 @@ class Shape:
 
 # Shoutouts to user fmw42 on Stackoverflow
 # https://stackoverflow.com/questions/66309353/kaleidoscope-effect-using-python-and-opencv
-def kaleidoscopify(framePath):
-    # arguments
-    invert = "no"     # invert mask; yes or no
-    rotate = 0        # rotate composite; 0, 90, 180, 270
-
-    # read image
-    img = cv2.imread(framePath)
+def kaleidoscopify(img):
+    # get dimensions
     ht, wd = img.shape[:2]
 
     # transpose the image
@@ -130,7 +126,7 @@ def kaleidoscopify(framePath):
     mask = np.zeros((ht,wd), dtype=np.uint8)
     points = np.array( [[ [0,0], [wd,0], [wd,ht] ]] )
     cv2.fillPoly(mask, points, 255)
-    if invert == "yes":
+    if INVERT_MASK == "yes":
         mask = cv2.bitwise_not(mask)
 
     # composite img and imgt using mask
@@ -139,11 +135,11 @@ def kaleidoscopify(framePath):
     comp = cv2.add(compA, compB)
 
     # rotate composite
-    if rotate == 90:
+    if ROTATE_COMPOSITE == 90:
         comp = cv2.rotate(comp,cv2.ROTATE_90_CLOCKWISE)
-    elif rotate == 180:
+    elif ROTATE_COMPOSITE == 180:
         comp = cv2.rotate(comp,cv2.ROTATE_180)
-    elif rotate == 270:
+    elif ROTATE_COMPOSITE == 270:
         comp = cv2.rotate(comp,cv2.ROTATE_90_COUNTERCLOCKWISE)
 
     # mirror (flip) horizontally
@@ -161,8 +157,8 @@ def kaleidoscopify(framePath):
     # resize
     kaleidoscope = cv2.resize(kaleidoscope_big, (0,0), fx=0.5, fy=0.5, interpolation=cv2.INTER_LINEAR)
 
-    # save results
-    cv2.imwrite(framePath, kaleidoscope)
+    # return results
+    return kaleidoscope
 
 def images_to_video(input_folder, output_file, fps):
     # Get all image file paths, sorted by name
@@ -195,10 +191,12 @@ def images_to_video(input_folder, output_file, fps):
 # Main
 def main():
     shapes = [Shape() for _ in range(NUM_SHAPES)]
-    os.makedirs(TEMP_DIR, exist_ok=True)
+
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(OUTPUT_FILE, fourcc, TARGET_FPS, (WIDTH, HEIGHT))
 
     print("Generating frames...")
-    for frame_idx in range(NUM_FRAMES):
+    for _ in range(NUM_FRAMES):
         img = Image.new('RGB', (WIDTH, HEIGHT), (0, 0, 0))
         draw = ImageDraw.Draw(img)
 
@@ -206,14 +204,13 @@ def main():
             shape.draw(draw)
             shape.update()
 
-        img.save(os.path.join(TEMP_DIR, f'frame_{frame_idx:04d}.png'))
-        kaleidoscopify(os.path.join(TEMP_DIR, f'frame_{frame_idx:04d}.png'))
+        frame_np = np.array(img)
+        frame_cv = cv2.cvtColor(frame_np, cv2.COLOR_RGB2BGR)  # Convert PIL RGB to OpenCV BGR
+        kaleidoscope = kaleidoscopify(frame_cv)
 
-    print("Converting to video file...")
-    images_to_video(TEMP_DIR, OUTPUT_FILE, TARGET_FPS)
+        out.write(kaleidoscope)
 
-    shutil.rmtree(TEMP_DIR)
-
+    out.release()
     print("Kaleidoscope generated!")
 
 if __name__ == "__main__":
