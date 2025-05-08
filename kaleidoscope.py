@@ -4,27 +4,27 @@ from PIL import Image, ImageDraw
 import random
 import math
 import os
-import imageio.v2 as imageio
 import colorsys
 import shutil
 
-# === Configuration ===
+# ===== Settings =====
 WIDTH, HEIGHT = 600, 600
 NUM_SHAPES = 60
 NUM_FRAMES = 1800
 SHAPE_TYPES = ['circle', 'hollow_circle', 'rectangle', 'hollow_rectangle', 'triangle', 'hollow_triangle']
-OUTPUT_DIR = "frames"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+TEMP_DIR = "frames"
+OUTPUT_FILE = "kaleidoscope.mp4"
+TARGET_FPS = 60
+# ====================
 
 def random_saturated_color():
-    # Random hue value (0-360)
-    hue = random.random()  # Random float between 0.0 and 1.0
-    # Convert to HSV (Hue, Saturation, Value)
-    rgb = colorsys.hsv_to_rgb(hue, 1, 1)  # Saturation and Value are set to 1 (full saturation and brightness)
+    # Random hue value (0.0 - 1.0)
+    hue = random.random()
+    # Convert to HSV
+    rgb = colorsys.hsv_to_rgb(hue, 1, 1)
     # Convert RGB to 0-255 range and return as a tuple
     return tuple(int(c * 255) for c in rgb)
 
-# === Shape Class ===
 class Shape:
     def __init__(self):
         self.type = random.choice(SHAPE_TYPES)
@@ -61,12 +61,13 @@ class Shape:
             
         elif self.type == 'hollow_circle':
             bbox = [x - self.size, y - self.size, x + self.size, y + self.size]
-            # Draw the outline of the circle with a width (e.g., 5px)
+            # Draw the outline of the circle
             draw_obj.ellipse(bbox, outline=self.color, width=8)
 
         elif self.type == 'rectangle':
             half = self.size / 2
             corners = [(-half, -half), (half, -half), (half, half), (-half, half)]
+            # Rotate corners around the center (x, y)
             rotated = [(
                 x + dx * math.cos(angle) - dy * math.sin(angle),
                 y + dx * math.sin(angle) + dy * math.cos(angle)
@@ -83,11 +84,10 @@ class Shape:
                 y + dx * math.sin(angle) + dy * math.cos(angle)
             ) for dx, dy in corners]
             
-            # Draw the edges with width 5px
-            # You can draw lines between the consecutive corners to form a hollow rectangle
+            # Draw the edges
             for i in range(4):
                 start_point = rotated[i]
-                end_point = rotated[(i + 1) % 4]  # Ensures the last point connects to the first
+                end_point = rotated[(i + 1) % 4] # Ensures the last point connects to the first
                 draw_obj.line([start_point, end_point], fill=self.color, width=8)
 
         elif self.type == 'triangle':
@@ -112,12 +112,14 @@ class Shape:
             # Draw the outline of the triangle (hollow) with a width (e.g., 5px)
             draw_obj.polygon(rotated, outline=self.color, width=8)
 
+# Shoutouts to user fmw42 on Stackoverflow
+# https://stackoverflow.com/questions/66309353/kaleidoscope-effect-using-python-and-opencv
 def kaleidoscopify(framePath):
     # arguments
     invert = "no"     # invert mask; yes or no
     rotate = 0        # rotate composite; 0, 90, 180, 270
 
-    # read image (must be square)
+    # read image
     img = cv2.imread(framePath)
     ht, wd = img.shape[:2]
 
@@ -162,12 +164,12 @@ def kaleidoscopify(framePath):
     # save results
     cv2.imwrite(framePath, kaleidoscope)
 
-def images_to_video(input_folder, output_file="output.mp4", fps=30):
+def images_to_video(input_folder, output_file, fps):
     # Get all image file paths, sorted by name
     image_files = sorted([
         os.path.join(input_folder, f)
         for f in os.listdir(input_folder)
-        if f.lower().endswith(('.png', '.jpg', '.jpeg'))
+        if f.lower().endswith(('.png'))
     ])
 
     if not image_files:
@@ -178,7 +180,7 @@ def images_to_video(input_folder, output_file="output.mp4", fps=30):
     height, width, _ = first_frame.shape
 
     # Define the video codec and create VideoWriter
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # or 'XVID'
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(output_file, fourcc, fps, (width, height))
 
     for image_path in image_files:
@@ -190,24 +192,29 @@ def images_to_video(input_folder, output_file="output.mp4", fps=30):
     out.release()
     print(f"Video saved as {output_file}")
 
-# === Main Loop ===
-shapes = [Shape() for _ in range(NUM_SHAPES)]
+# Main
+def main():
+    shapes = [Shape() for _ in range(NUM_SHAPES)]
+    os.makedirs(TEMP_DIR, exist_ok=True)
 
-os.makedirs('frames', exist_ok=True)
+    print("Generating frames...")
+    for frame_idx in range(NUM_FRAMES):
+        img = Image.new('RGB', (WIDTH, HEIGHT), (0, 0, 0))
+        draw = ImageDraw.Draw(img)
 
-for frame_idx in range(NUM_FRAMES):
-    img = Image.new('RGB', (WIDTH, HEIGHT), (0, 0, 0))
-    draw = ImageDraw.Draw(img)
+        for shape in shapes:
+            shape.draw(draw)
+            shape.update()
 
-    for shape in shapes:
-        shape.draw(draw)
-        shape.update()
+        img.save(os.path.join(TEMP_DIR, f'frame_{frame_idx:04d}.png'))
+        kaleidoscopify(os.path.join(TEMP_DIR, f'frame_{frame_idx:04d}.png'))
 
-    img.save(os.path.join(OUTPUT_DIR, f'frame_{frame_idx:04d}.png'))
-    kaleidoscopify(os.path.join(OUTPUT_DIR, f'frame_{frame_idx:04d}.png'))
+    print("Converting to video file...")
+    images_to_video(TEMP_DIR, OUTPUT_FILE, TARGET_FPS)
 
-images_to_video("frames", "kaleidoscope.mp4", fps=60)
+    shutil.rmtree(TEMP_DIR)
 
-shutil.rmtree('frames')
+    print("Kaleidoscope generated!")
 
-print("Done generating frames.")
+if __name__ == "__main__":
+    main()
