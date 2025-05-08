@@ -13,6 +13,7 @@ NUM_FRAMES = 1800
 SHAPE_TYPES = ['circle', 'hollow_circle', 'rectangle', 'hollow_rectangle', 'triangle', 'hollow_triangle']
 TEMP_DIR = "frames"
 OUTPUT_FILE = "kaleidoscope.mp4"
+VIDEO_CODEC = 'mp4v'
 TARGET_FPS = 60
 INVERT_MASK = "no"
 ROTATE_COMPOSITE = 0 # 0, 90, 180, 270
@@ -176,7 +177,7 @@ def images_to_video(input_folder, output_file, fps):
     height, width, _ = first_frame.shape
 
     # Define the video codec and create VideoWriter
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*VIDEO_CODEC)
     out = cv2.VideoWriter(output_file, fourcc, fps, (width, height))
 
     for image_path in image_files:
